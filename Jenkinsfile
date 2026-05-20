@@ -9,31 +9,35 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build & Environment Setup') {
             steps {
-                echo '--- Building Docker Image ---'
-                sh 'docker build -t flask-app .'
+                echo '--- Setting up Python Environment & Dependencies ---'
+                // بنعمل Virtual Environment وبنسطب المكتبات
+                sh '''
+                python3 -m venv venv
+                ./venv/bin/pip install --upgrade pip
+                ./venv/bin/pip install -r requirements.txt
+                '''
             }
         }
 
         stage('Test') {
             steps {
-                echo '--- Running Tests inside Docker Container ---'
-                
-                sh 'docker run --rm flask-app pytest'
+                echo '--- Running Pytest ---'
+                // بتشغل التست اللي عملناه بـ pytest
+                sh './venv/bin/pytest'
             }
         }
 
         stage('Deploy') {
             steps {
-                echo '--- Deploying container ---'
-                
+                echo '--- Deploying Flask Application ---'
+                // بنشغل التطبيق في الخلفية على بورت 5000
                 sh '''
-                docker stop flask-running || true
-                docker rm flask-running || true
-                docker run -d --name flask-running -p 5000:5000 flask-app
+                fuser -k 5000/tcp || true
+                nohup ./venv/bin/python app.py > flask.log 2>&1 &
                 '''
-                echo 'App deployed successfully at http://localhost:5000'
+                echo 'App deployed successfully!'
             }
         }
     }
