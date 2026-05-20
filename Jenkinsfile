@@ -1,43 +1,53 @@
 pipeline {
     agent any
 
+    options {
+        
+        skipDefaultCheckout()
+    }
+
+    environment {
+        IMAGE_NAME = 'flask-app'
+        CONTAINER_NAME = 'flask-running'
+    }
+
     stages {
-        stage('Checkout SCM') {
+        stage('Clone') {
             steps {
-                echo '--- Checking out source code ---'
+                echo '--- Cloning Code from GitHub ---'
+               
                 checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                echo '--- Simulating Build & Installing Dependencies ---'
-                echo 'Flask app build steps completed.'
+                echo '--- Building Docker Image ---'
+                sh "docker build -t ${IMAGE_NAME} ."
             }
         }
 
         stage('Test') {
             steps {
-                echo '--- Running Application Smoke Tests ---'
-                echo 'Testing endpoint connectivity... Success!'
+                echo '--- Running Unit Tests inside Docker ---'
+                sh "docker run --rm ${IMAGE_NAME} pytest test_app.py"
             }
         }
 
         stage('Deploy') {
             steps {
-                echo '--- Deploying Flask Application Container Service ---'
-                echo 'App deployed successfully!'
-                echo 'URL: http://localhost:5000'
+                echo '--- Deploying Container ---'
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm ${CONTAINER_NAME} || true"
+                sh "docker run -d --name ${CONTAINER_NAME} -p 5000:5000 ${IMAGE_NAME}"
+                echo "App deployed at http://localhost:5000"
             }
         }
     }
 
     post {
         success {
-            echo 'Pipeline succeeded! Perfect.'
-        }
-        failure {
-            echo 'Pipeline failed.'
+            echo 'Pipeline succeeded! App is running.'
         }
     }
 }
